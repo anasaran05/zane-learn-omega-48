@@ -1,0 +1,201 @@
+
+import { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CourseFormData, useCourseLookupData } from '@/hooks/useCourseCreation';
+import { AlertCircle } from 'lucide-react';
+
+interface BasicInfoStepProps {
+  formData: CourseFormData;
+  updateFormData: (data: Partial<CourseFormData>) => void;
+  errors?: Record<string, string>;
+}
+
+export function BasicInfoStep({ formData, updateFormData, errors = {} }: BasicInfoStepProps) {
+  const { data: lookupData, isLoading } = useCourseLookupData();
+  const [showOtherCategory, setShowOtherCategory] = useState(false);
+
+  const handleFieldChange = (field: keyof CourseFormData, value: any) => {
+    updateFormData({ [field]: value });
+  };
+
+  useEffect(() => {
+    const selectedCategory = lookupData?.categories?.find(c => c.id === formData.category_id);
+    setShowOtherCategory(selectedCategory?.name === 'Other');
+  }, [formData.category_id, lookupData]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading course options...</div>
+      </div>
+    );
+  }
+
+  const ErrorMessage = ({ field }: { field: string }) => {
+    if (!errors[field]) return null;
+    return (
+      <div className="flex items-center gap-1 text-destructive text-sm mt-1">
+        <AlertCircle className="h-3 w-3" />
+        <span>{errors[field]}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Basic Course Information</h3>
+        <p className="text-muted-foreground mb-6">
+          Let's start with the essential details about your course.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="md:col-span-2">
+          <Label htmlFor="title" className={errors.title ? 'text-destructive' : ''}>
+            Course Title *
+          </Label>
+          <Input
+            id="title"
+            value={formData.title}
+            onChange={(e) => handleFieldChange('title', e.target.value)}
+            placeholder="Enter course title"
+            className={`mt-1 ${errors.title ? 'border-destructive' : ''}`}
+          />
+          <ErrorMessage field="title" />
+        </div>
+
+        <div className="md:col-span-2">
+          <Label htmlFor="subtitle">Subtitle/Tagline</Label>
+          <Input
+            id="subtitle"
+            value={formData.subtitle || ''}
+            onChange={(e) => handleFieldChange('subtitle', e.target.value)}
+            placeholder="Enter course subtitle"
+            className="mt-1"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="category" className={errors.category_id ? 'text-destructive' : ''}>
+            Category *
+          </Label>
+          <Select
+            value={formData.category_id}
+            onValueChange={(value) => handleFieldChange('category_id', value)}
+          >
+            <SelectTrigger className={`mt-1 ${errors.category_id ? 'border-destructive' : ''}`}>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {lookupData?.categories?.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ErrorMessage field="category_id" />
+        </div>
+
+        {showOtherCategory && (
+          <div>
+            <Label htmlFor="custom-category">Custom Category</Label>
+            <Input
+              id="custom-category"
+              placeholder="Enter custom category"
+              className="mt-1"
+            />
+          </div>
+        )}
+
+        <div>
+          <Label htmlFor="level" className={errors.level_id ? 'text-destructive' : ''}>
+            Level *
+          </Label>
+          <Select
+            value={formData.level_id}
+            onValueChange={(value) => handleFieldChange('level_id', value)}
+          >
+            <SelectTrigger className={`mt-1 ${errors.level_id ? 'border-destructive' : ''}`}>
+              <SelectValue placeholder="Select level" />
+            </SelectTrigger>
+            <SelectContent>
+              {lookupData?.levels?.map((level) => (
+                <SelectItem key={level.id} value={level.id}>
+                  {level.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ErrorMessage field="level_id" />
+        </div>
+
+        <div>
+          <Label htmlFor="language">Language</Label>
+          <Select
+            value={formData.language_id}
+            onValueChange={(value) => handleFieldChange('language_id', value)}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select language" />
+            </SelectTrigger>
+            <SelectContent>
+              {lookupData?.languages?.map((language) => (
+                <SelectItem key={language.id} value={language.id}>
+                  {language.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Label htmlFor="duration-value">Duration</Label>
+            <Input
+              id="duration-value"
+              type="number"
+              value={formData.duration_value || ''}
+              onChange={(e) => handleFieldChange('duration_value', parseInt(e.target.value) || 0)}
+              placeholder="Enter duration"
+              className="mt-1"
+              min="0"
+            />
+          </div>
+          <div className="flex-1">
+            <Label htmlFor="duration-unit">Unit</Label>
+            <Select
+              value={formData.duration_unit}
+              onValueChange={(value) => handleFieldChange('duration_unit', value)}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hours">Hours</SelectItem>
+                <SelectItem value="days">Days</SelectItem>
+                <SelectItem value="weeks">Weeks</SelectItem>
+                <SelectItem value="months">Months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="md:col-span-2">
+          <Label htmlFor="description">Course Description</Label>
+          <Textarea
+            id="description"
+            value={formData.description || ''}
+            onChange={(e) => handleFieldChange('description', e.target.value)}
+            placeholder="Describe your course in detail..."
+            className="mt-1 min-h-[120px]"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
