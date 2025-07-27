@@ -271,8 +271,8 @@ export default function CourseEdit() {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-6">
-            <Card className="bg-white">
-              <CardHeader className="flex flex-row items-center justify-between">
+            <Card className="bg-slate-900">
+              <CardHeader className="flex flex-row items-center justify-between bg-slate-900">
                 <CardTitle>Content</CardTitle>
                 <div className="flex gap-2">
                   <Button variant="outline">
@@ -285,7 +285,7 @@ export default function CourseEdit() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 bg-slate-900">
                 {course.course_modules?.map((module: any) => <div key={module.id} className="border rounded-lg">
                     <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30" onClick={() => toggleModuleExpansion(module.id)}>
                       <div className="flex items-center gap-3">
@@ -351,10 +351,10 @@ export default function CourseEdit() {
 
           <TabsContent value="instructors" className="space-y-6">
             <Card className="bg-white">
-              <CardHeader>
+              <CardHeader className="bg-slate-900">
                 <CardTitle>Instructors</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="bg-slate-900">
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No instructors assigned</p>
@@ -365,11 +365,11 @@ export default function CourseEdit() {
           </TabsContent>
 
           <TabsContent value="seo" className="space-y-6">
-            <Card className="bg-white">
-              <CardHeader>
+            <Card className="bg-slate-900">
+              <CardHeader className="bg-slate-900">
                 <CardTitle>SEO Settings</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 bg-slate-900">
                 <div>
                   <Label htmlFor="seo-url">URL Slug</Label>
                   <div className="flex mt-1">
