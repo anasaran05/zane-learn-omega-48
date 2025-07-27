@@ -66,6 +66,24 @@ export default function AdminCourses() {
     },
   });
 
+  // Fetch trashed courses separately
+  const { data: trashedCoursesData = [], refetch: refetchTrashed } = useQuery({
+    queryKey: ['trashed-courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trashed_courses')
+        .select('*')
+        .order('trashed_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching trashed courses:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+
   // Set up real-time subscriptions
   useEffect(() => {
     const enrollmentChannel = supabase
@@ -93,7 +111,7 @@ export default function AdminCourses() {
           table: 'trashed_courses'
         },
         () => {
-          refetch();
+          refetchTrashed();
         }
       )
       .subscribe();
@@ -102,7 +120,7 @@ export default function AdminCourses() {
       supabase.removeChannel(enrollmentChannel);
       supabase.removeChannel(trashedChannel);
     };
-  }, [refetch]);
+  }, [refetch, refetchTrashed]);
 
   // Filter courses based on status
   const publishedCourses = allCourses.filter((course: any) => course.status === 'published');
@@ -117,34 +135,19 @@ export default function AdminCourses() {
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-    console.log('Delete button clicked for course:', courseId);
     setDeletingCourseId(courseId);
-    
-    try {
-      await deleteCourse.mutateAsync(courseId);
-    } catch (error) {
-      console.error('Failed to delete course:', error);
-    } finally {
+    setTimeout(() => {
+      deleteCourse.mutate(courseId);
       setDeletingCourseId(null);
-    }
+    }, 300);
   };
 
-  const handleRestoreCourse = async (trashedCourseId: string) => {
-    console.log('Restore button clicked for course:', trashedCourseId);
-    try {
-      await restoreCourse.mutateAsync(trashedCourseId);
-    } catch (error) {
-      console.error('Failed to restore course:', error);
-    }
+  const handleRestoreCourse = (trashedCourseId: string) => {
+    restoreCourse.mutate(trashedCourseId);
   };
 
-  const handlePermanentlyDeleteCourse = async (trashedCourseId: string) => {
-    console.log('Permanent delete button clicked for course:', trashedCourseId);
-    try {
-      await permanentlyDeleteCourse.mutateAsync(trashedCourseId);
-    } catch (error) {
-      console.error('Failed to permanently delete course:', error);
-    }
+  const handlePermanentlyDeleteCourse = (trashedCourseId: string) => {
+    permanentlyDeleteCourse.mutate(trashedCourseId);
   };
 
   const CourseGrid = ({ courses, isTrash = false }: { courses: any[]; isTrash?: boolean }) => (
@@ -258,7 +261,7 @@ export default function AdminCourses() {
                           size="sm" 
                           className="text-red-500 hover:text-red-600"
                           onClick={() => handleDeleteCourse(course.id)}
-                          disabled={deletingCourseId === course.id || deleteCourse.isPending}
+                          disabled={deletingCourseId === course.id}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -279,7 +282,6 @@ export default function AdminCourses() {
                           size="sm" 
                           className="flex-1 text-green-600 hover:text-green-700"
                           onClick={() => handleRestoreCourse(course.id)}
-                          disabled={restoreCourse.isPending}
                         >
                           <RotateCcw className="h-4 w-4 mr-1" />
                           Restore
@@ -289,7 +291,6 @@ export default function AdminCourses() {
                           size="sm" 
                           className="text-red-500 hover:text-red-600"
                           onClick={() => handlePermanentlyDeleteCourse(course.id)}
-                          disabled={permanentlyDeleteCourse.isPending}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>

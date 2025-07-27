@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,23 +32,15 @@ export const useTrashedCourses = () => {
   // Delete course (move to trash)
   const deleteCourse = useMutation({
     mutationFn: async (courseId: string) => {
-      console.log('Moving course to trash:', courseId);
       const { error } = await supabase.rpc('move_course_to_trash', {
         course_id: courseId
       });
       
-      if (error) {
-        console.error('Error moving course to trash:', error);
-        throw error;
-      }
-      
-      console.log('Course moved to trash successfully');
+      if (error) throw error;
     },
     onSuccess: () => {
-      // Invalidate both queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
-      
       toast({
         title: "Course moved to trash",
         description: "The course has been moved to trash. It will be permanently deleted in 30 days.",
@@ -68,17 +59,11 @@ export const useTrashedCourses = () => {
   // Restore course from trash
   const restoreCourse = useMutation({
     mutationFn: async (trashedCourseId: string) => {
-      console.log('Restoring course from trash:', trashedCourseId);
       const { error } = await supabase.rpc('restore_course_from_trash', {
         trashed_course_id: trashedCourseId
       });
       
-      if (error) {
-        console.error('Error restoring course:', error);
-        throw error;
-      }
-      
-      console.log('Course restored successfully');
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
@@ -101,17 +86,11 @@ export const useTrashedCourses = () => {
   // Permanently delete course
   const permanentlyDeleteCourse = useMutation({
     mutationFn: async (trashedCourseId: string) => {
-      console.log('Permanently deleting course:', trashedCourseId);
       const { error } = await supabase.rpc('permanently_delete_trashed_course', {
         trashed_course_id: trashedCourseId
       });
       
-      if (error) {
-        console.error('Error permanently deleting course:', error);
-        throw error;
-      }
-      
-      console.log('Course permanently deleted successfully');
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
