@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_notifications: {
+        Row: {
+          course_id: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          student_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          student_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          student_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       assignment_submissions: {
         Row: {
           assignment_id: string
@@ -705,6 +738,7 @@ export type Database = {
           duration_unit: string | null
           duration_value: number | null
           id: string
+          image_url: string | null
           language_id: string | null
           learning_objectives: string[] | null
           level_id: string | null
@@ -724,6 +758,7 @@ export type Database = {
           duration_unit?: string | null
           duration_value?: number | null
           id?: string
+          image_url?: string | null
           language_id?: string | null
           learning_objectives?: string[] | null
           level_id?: string | null
@@ -743,6 +778,7 @@ export type Database = {
           duration_unit?: string | null
           duration_value?: number | null
           id?: string
+          image_url?: string | null
           language_id?: string | null
           learning_objectives?: string[] | null
           level_id?: string | null

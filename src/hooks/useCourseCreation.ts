@@ -6,6 +6,7 @@ export interface CourseFormData {
   subtitle?: string;
   description?: string;
   thumbnail_url?: string;
+  image_url?: string;
   category_id?: string;
   level?: 'Beginner' | 'Intermediate' | 'Advanced';
   level_id?: string;
@@ -78,6 +79,7 @@ export function useCreateCourseFull() {
           title: courseData.title,
           subtitle: courseData.subtitle,
           description: courseData.description,
+          image_url: courseData.image_url,
           category_id: courseData.category_id,
           level_id: courseData.level_id,
           language_id: courseData.language_id,

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ export default function AdminCourses() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("published");
 
-  const { data: allCourses = [], isLoading } = useQuery({
+  const { data: allCourses = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-courses'],
     queryFn: async () => {
       console.log('Fetching admin courses');
@@ -63,6 +63,28 @@ export default function AdminCourses() {
     },
   });
 
+  // Set up real-time subscription for enrollment updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('course-enrollments')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'course_enrollments'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
   // Filter courses based on status
   const publishedCourses = allCourses.filter((course: any) => course.status === 'published');
   const draftCourses = allCourses.filter((course: any) => course.status === 'draft');
@@ -74,6 +96,20 @@ export default function AdminCourses() {
 
   const handleEditCourse = (courseId: string) => {
     navigate(`/admin/courses/${courseId}`);
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      await supabase
+        .from('courses_enhanced')
+        .update({ status: 'trashed' })
+        .eq('id', courseId);
+      
+      // Refetch data to update UI
+      refetch();
+    } catch (error) {
+      console.error('Error moving course to trash:', error);
+    }
   };
 
   const CourseGrid = ({ courses }: { courses: any[] }) => (
@@ -103,10 +139,18 @@ export default function AdminCourses() {
             transition={{ duration: 0.6, delay: index * 0.1 }}
           >
             <Card className="card-hover overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-cherry-500/20 to-maroon-500/20 relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <BookOpen className="h-12 w-12 text-cherry-400" />
-                </div>
+              <div className="aspect-video bg-gradient-to-br from-cherry-500/20 to-maroon-500/20 relative overflow-hidden">
+                {course.image_url ? (
+                  <img 
+                    src={course.image_url} 
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <BookOpen className="h-12 w-12 text-cherry-400" />
+                  </div>
+                )}
                 <Badge 
                   variant={course.status === "published" ? "default" : "secondary"}
                   className="absolute top-2 right-2"
@@ -161,7 +205,12 @@ export default function AdminCourses() {
                     <Edit className="h-4 w-4 mr-1" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-500 hover:text-red-600"
+                    onClick={() => handleDeleteCourse(course.id)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
