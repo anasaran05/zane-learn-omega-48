@@ -1,24 +1,18 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-export function useTrashedCourses() {
+export const useTrashedCourses = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Fetch trashed courses
   const { data: trashedCourses = [], isLoading, refetch } = useQuery({
     queryKey: ['trashed-courses'],
     queryFn: async () => {
-      console.log('Fetching trashed courses');
-      
       const { data, error } = await supabase
         .from('trashed_courses')
-        .select(`
-          *,
-          course_categories!category_id (name),
-          course_levels!level_id (name)
-        `)
+        .select('*')
         .order('trashed_at', { ascending: false });
 
       if (error) {
@@ -26,33 +20,16 @@ export function useTrashedCourses() {
         throw error;
       }
 
-      console.log('Trashed courses fetched:', data);
-      return data || [];
+      // Parse course_data and add expires_at
+      return (data || []).map((course: any) => ({
+        ...course,
+        ...(course.course_data || {}),
+        expires_at: new Date(new Date(course.trashed_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      }));
     },
   });
 
-  // Set up real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('trashed-courses')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'trashed_courses'
-        },
-        () => {
-          refetch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refetch]);
-
+  // Delete course (move to trash)
   const deleteCourse = useMutation({
     mutationFn: async (courseId: string) => {
       const { error } = await supabase.rpc('move_course_to_trash', {
@@ -66,19 +43,20 @@ export function useTrashedCourses() {
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
       toast({
         title: "Course moved to trash",
-        description: "The course has been moved to trash and will be automatically deleted in 30 days.",
+        description: "The course has been moved to trash. It will be permanently deleted in 30 days.",
       });
     },
     onError: (error) => {
       console.error('Error moving course to trash:', error);
       toast({
         title: "Error",
-        description: "Failed to move course to trash.",
-        variant: "destructive"
+        description: "Failed to move course to trash. Please try again.",
+        variant: "destructive",
       });
     }
   });
 
+  // Restore course from trash
   const restoreCourse = useMutation({
     mutationFn: async (trashedCourseId: string) => {
       const { error } = await supabase.rpc('restore_course_from_trash', {
@@ -92,19 +70,20 @@ export function useTrashedCourses() {
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
       toast({
         title: "Course restored",
-        description: "The course has been restored successfully.",
+        description: "The course has been restored from trash as a draft.",
       });
     },
     onError: (error) => {
       console.error('Error restoring course:', error);
       toast({
         title: "Error",
-        description: "Failed to restore course.",
-        variant: "destructive"
+        description: "Failed to restore course. Please try again.",
+        variant: "destructive",
       });
     }
   });
 
+  // Permanently delete course
   const permanentlyDeleteCourse = useMutation({
     mutationFn: async (trashedCourseId: string) => {
       const { error } = await supabase.rpc('permanently_delete_trashed_course', {
@@ -124,8 +103,8 @@ export function useTrashedCourses() {
       console.error('Error permanently deleting course:', error);
       toast({
         title: "Error",
-        description: "Failed to permanently delete course.",
-        variant: "destructive"
+        description: "Failed to permanently delete course. Please try again.",
+        variant: "destructive",
       });
     }
   });
@@ -133,9 +112,9 @@ export function useTrashedCourses() {
   return {
     trashedCourses,
     isLoading,
+    refetch,
     deleteCourse,
     restoreCourse,
-    permanentlyDeleteCourse,
-    refetch
+    permanentlyDeleteCourse
   };
-}
+};

@@ -66,9 +66,27 @@ export default function AdminCourses() {
     },
   });
 
-  // Set up real-time subscription for enrollment updates
+  // Fetch trashed courses separately
+  const { data: trashedCoursesData = [], refetch: refetchTrashed } = useQuery({
+    queryKey: ['trashed-courses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trashed_courses')
+        .select('*')
+        .order('trashed_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching trashed courses:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+
+  // Set up real-time subscriptions
   useEffect(() => {
-    const channel = supabase
+    const enrollmentChannel = supabase
       .channel('course-enrollments')
       .on(
         'postgres_changes',
@@ -83,10 +101,26 @@ export default function AdminCourses() {
       )
       .subscribe();
 
+    const trashedChannel = supabase
+      .channel('trashed-courses')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'trashed_courses'
+        },
+        () => {
+          refetchTrashed();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(enrollmentChannel);
+      supabase.removeChannel(trashedChannel);
     };
-  }, [refetch]);
+  }, [refetch, refetchTrashed]);
 
   // Filter courses based on status
   const publishedCourses = allCourses.filter((course: any) => course.status === 'published');
@@ -102,11 +136,10 @@ export default function AdminCourses() {
 
   const handleDeleteCourse = async (courseId: string) => {
     setDeletingCourseId(courseId);
-    // Add a small delay for animation effect
     setTimeout(() => {
       deleteCourse.mutate(courseId);
       setDeletingCourseId(null);
-    }, 500);
+    }, 300);
   };
 
   const handleRestoreCourse = (trashedCourseId: string) => {
@@ -119,25 +152,25 @@ export default function AdminCourses() {
 
   const CourseGrid = ({ courses, isTrash = false }: { courses: any[]; isTrash?: boolean }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {courses.length === 0 ? (
-        <div className="col-span-full text-center py-12">
-          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No courses found</h3>
-          <p className="text-muted-foreground mb-4">
-            {activeTab === 'published' && "No published courses yet."}
-            {activeTab === 'drafts' && "No draft courses yet."}
-            {activeTab === 'trashed' && "No trashed courses yet."}
-          </p>
-          {activeTab === 'drafts' && (
-            <Button onClick={handleCreateCourse} className="bg-gradient-cherry hover:opacity-90">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Course
-            </Button>
-          )}
-        </div>
-      ) : (
-        <AnimatePresence>
-          {courses.map((course: any, index: number) => (
+      <AnimatePresence>
+        {courses.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No courses found</h3>
+            <p className="text-muted-foreground mb-4">
+              {activeTab === 'published' && "No published courses yet."}
+              {activeTab === 'drafts' && "No draft courses yet."}
+              {activeTab === 'trashed' && "No trashed courses yet."}
+            </p>
+            {activeTab === 'drafts' && (
+              <Button onClick={handleCreateCourse} className="bg-gradient-cherry hover:opacity-90">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Course
+              </Button>
+            )}
+          </div>
+        ) : (
+          courses.map((course: any, index: number) => (
             <motion.div
               key={course.id}
               initial={{ opacity: 0, y: 20 }}
@@ -168,7 +201,7 @@ export default function AdminCourses() {
                   >
                     {isTrash ? "trashed" : course.status}
                   </Badge>
-                  {isTrash && (
+                  {isTrash && course.expires_at && (
                     <div className="absolute bottom-2 left-2 text-xs text-white bg-black/50 px-2 py-1 rounded">
                       Expires: {new Date(course.expires_at).toLocaleDateString()}
                     </div>
@@ -238,7 +271,9 @@ export default function AdminCourses() {
                     <>
                       <div className="text-sm text-muted-foreground mb-4">
                         <p>Trashed on: {new Date(course.trashed_at).toLocaleDateString()}</p>
-                        <p>Auto-delete on: {new Date(course.expires_at).toLocaleDateString()}</p>
+                        {course.expires_at && (
+                          <p>Auto-delete on: {new Date(course.expires_at).toLocaleDateString()}</p>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -265,9 +300,9 @@ export default function AdminCourses() {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
-        </AnimatePresence>
-      )}
+          ))
+        )}
+      </AnimatePresence>
     </div>
   );
 
