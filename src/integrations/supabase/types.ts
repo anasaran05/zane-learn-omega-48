@@ -2044,6 +2044,78 @@ export type Database = {
           },
         ]
       }
+      trashed_courses: {
+        Row: {
+          category_id: string | null
+          created_by: string | null
+          description: string | null
+          duration_unit: string | null
+          duration_value: number | null
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          language_id: string | null
+          learning_objectives: string[] | null
+          level_id: string | null
+          original_course_id: string
+          original_created_at: string | null
+          prerequisites: string | null
+          skills_taught: string[] | null
+          status: string | null
+          subtitle: string | null
+          target_audience: string[] | null
+          title: string
+          trashed_at: string | null
+          trashed_by: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          language_id?: string | null
+          learning_objectives?: string[] | null
+          level_id?: string | null
+          original_course_id: string
+          original_created_at?: string | null
+          prerequisites?: string | null
+          skills_taught?: string[] | null
+          status?: string | null
+          subtitle?: string | null
+          target_audience?: string[] | null
+          title: string
+          trashed_at?: string | null
+          trashed_by?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          language_id?: string | null
+          learning_objectives?: string[] | null
+          level_id?: string | null
+          original_course_id?: string
+          original_created_at?: string | null
+          prerequisites?: string | null
+          skills_taught?: string[] | null
+          status?: string | null
+          subtitle?: string | null
+          target_audience?: string[] | null
+          title?: string
+          trashed_at?: string | null
+          trashed_by?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -2073,6 +2145,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_trashed_courses: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       close_expired_chats: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2083,6 +2159,18 @@ export type Database = {
       }
       get_user_role: {
         Args: { user_id: string }
+        Returns: string
+      }
+      move_course_to_trash: {
+        Args: { course_id: string }
+        Returns: undefined
+      }
+      permanently_delete_trashed_course: {
+        Args: { trashed_course_id: string }
+        Returns: undefined
+      }
+      restore_course_from_trash: {
+        Args: { trashed_course_id: string }
         Returns: string
       }
       unlock_next_lesson: {

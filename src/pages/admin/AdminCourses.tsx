@@ -1,18 +1,21 @@
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, BookOpen, Users, Clock, Edit, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Users, Clock, Edit, Trash2, RotateCcw, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTrashedCourses } from "@/hooks/useTrashedCourses";
 
 export default function AdminCourses() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("published");
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+  const { trashedCourses, deleteCourse, restoreCourse, permanentlyDeleteCourse } = useTrashedCourses();
 
   const { data: allCourses = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-courses'],
@@ -88,7 +91,6 @@ export default function AdminCourses() {
   // Filter courses based on status
   const publishedCourses = allCourses.filter((course: any) => course.status === 'published');
   const draftCourses = allCourses.filter((course: any) => course.status === 'draft');
-  const trashedCourses = allCourses.filter((course: any) => course.status === 'trashed');
 
   const handleCreateCourse = () => {
     navigate('/admin/courses/create');
@@ -99,20 +101,23 @@ export default function AdminCourses() {
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-    try {
-      await supabase
-        .from('courses_enhanced')
-        .update({ status: 'trashed' })
-        .eq('id', courseId);
-      
-      // Refetch data to update UI
-      refetch();
-    } catch (error) {
-      console.error('Error moving course to trash:', error);
-    }
+    setDeletingCourseId(courseId);
+    // Add a small delay for animation effect
+    setTimeout(() => {
+      deleteCourse.mutate(courseId);
+      setDeletingCourseId(null);
+    }, 500);
   };
 
-  const CourseGrid = ({ courses }: { courses: any[] }) => (
+  const handleRestoreCourse = (trashedCourseId: string) => {
+    restoreCourse.mutate(trashedCourseId);
+  };
+
+  const handlePermanentlyDeleteCourse = (trashedCourseId: string) => {
+    permanentlyDeleteCourse.mutate(trashedCourseId);
+  };
+
+  const CourseGrid = ({ courses, isTrash = false }: { courses: any[]; isTrash?: boolean }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {courses.length === 0 ? (
         <div className="col-span-full text-center py-12">
@@ -131,93 +136,137 @@ export default function AdminCourses() {
           )}
         </div>
       ) : (
-        courses.map((course: any, index: number) => (
-          <motion.div
-            key={course.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-          >
-            <Card className="card-hover overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-cherry-500/20 to-maroon-500/20 relative overflow-hidden">
-                {course.image_url ? (
-                  <img 
-                    src={course.image_url} 
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <BookOpen className="h-12 w-12 text-cherry-400" />
-                  </div>
-                )}
-                <Badge 
-                  variant={course.status === "published" ? "default" : "secondary"}
-                  className="absolute top-2 right-2"
-                >
-                  {course.status}
-                </Badge>
-              </div>
-              
-              <CardHeader>
-                <CardTitle className="text-lg">{course.title}</CardTitle>
-                {course.subtitle && (
-                  <p className="text-sm text-muted-foreground">{course.subtitle}</p>
-                )}
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {course.description}
-                </p>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {course.enrollmentCount || 0} students
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {course.course_modules?.reduce((total: number, module: any) => 
-                      total + (module.course_lessons?.length || 0), 0) || 0} lessons
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {course.course_categories && (
-                    <Badge variant="outline" className="text-xs">
-                      {course.course_categories.name}
-                    </Badge>
+        <AnimatePresence>
+          {courses.map((course: any, index: number) => (
+            <motion.div
+              key={course.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ 
+                opacity: deletingCourseId === course.id ? 0 : 1,
+                y: deletingCourseId === course.id ? -20 : 0,
+                scale: deletingCourseId === course.id ? 0.8 : 1
+              }}
+              exit={{ opacity: 0, scale: 0.8, y: -20 }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+            >
+              <Card className="card-hover overflow-hidden">
+                <div className="aspect-video bg-gradient-to-br from-cherry-500/20 to-maroon-500/20 relative overflow-hidden">
+                  {course.image_url ? (
+                    <img 
+                      src={course.image_url} 
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <BookOpen className="h-12 w-12 text-cherry-400" />
+                    </div>
                   )}
-                  {course.course_levels && (
-                    <Badge variant="outline" className="text-xs">
-                      {course.course_levels.name}
-                    </Badge>
+                  <Badge 
+                    variant={isTrash ? "destructive" : course.status === "published" ? "default" : "secondary"}
+                    className="absolute top-2 right-2"
+                  >
+                    {isTrash ? "trashed" : course.status}
+                  </Badge>
+                  {isTrash && (
+                    <div className="absolute bottom-2 left-2 text-xs text-white bg-black/50 px-2 py-1 rounded">
+                      Expires: {new Date(course.expires_at).toLocaleDateString()}
+                    </div>
                   )}
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleEditCourse(course.id)}
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => handleDeleteCourse(course.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))
+                <CardHeader>
+                  <CardTitle className="text-lg">{course.title}</CardTitle>
+                  {course.subtitle && (
+                    <p className="text-sm text-muted-foreground">{course.subtitle}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {course.description}
+                  </p>
+                </CardHeader>
+                
+                <CardContent>
+                  {!isTrash ? (
+                    <>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {course.enrollmentCount || 0} students
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {course.course_modules?.reduce((total: number, module: any) => 
+                            total + (module.course_lessons?.length || 0), 0) || 0} lessons
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {course.course_categories && (
+                          <Badge variant="outline" className="text-xs">
+                            {course.course_categories.name}
+                          </Badge>
+                        )}
+                        {course.course_levels && (
+                          <Badge variant="outline" className="text-xs">
+                            {course.course_levels.name}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => handleEditCourse(course.id)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleDeleteCourse(course.id)}
+                          disabled={deletingCourseId === course.id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm text-muted-foreground mb-4">
+                        <p>Trashed on: {new Date(course.trashed_at).toLocaleDateString()}</p>
+                        <p>Auto-delete on: {new Date(course.expires_at).toLocaleDateString()}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 text-green-600 hover:text-green-700"
+                          onClick={() => handleRestoreCourse(course.id)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Restore
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handlePermanentlyDeleteCourse(course.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       )}
     </div>
   );
@@ -284,7 +333,7 @@ export default function AdminCourses() {
           </TabsContent>
 
           <TabsContent value="trashed">
-            <CourseGrid courses={trashedCourses} />
+            <CourseGrid courses={trashedCourses} isTrash={true} />
           </TabsContent>
         </Tabs>
       </motion.div>
