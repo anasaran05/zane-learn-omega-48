@@ -11,6 +11,7 @@ export const useTrashedCourses = () => {
   const { data: trashedCourses = [], isLoading, refetch } = useQuery({
     queryKey: ['trashed-courses'],
     queryFn: async () => {
+      console.log('Fetching trashed courses...');
       const { data, error } = await supabase
         .from('trashed_courses')
         .select('*')
@@ -21,10 +22,10 @@ export const useTrashedCourses = () => {
         throw error;
       }
 
+      console.log('Trashed courses fetched:', data);
       // Parse course_data and add expires_at
       return (data || []).map((course: any) => ({
         ...course,
-        ...(course.course_data || {}),
         expires_at: new Date(new Date(course.trashed_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
       }));
     },
@@ -33,7 +34,7 @@ export const useTrashedCourses = () => {
   // Delete course (move to trash)
   const deleteCourse = useMutation({
     mutationFn: async (courseId: string) => {
-      console.log('Moving course to trash:', courseId);
+      console.log('Starting to move course to trash:', courseId);
       const { error } = await supabase.rpc('move_course_to_trash', {
         course_id: courseId
       });
@@ -44,11 +45,17 @@ export const useTrashedCourses = () => {
       }
       
       console.log('Course moved to trash successfully');
+      return courseId;
     },
-    onSuccess: () => {
-      // Invalidate both queries to refresh the data
+    onSuccess: (courseId) => {
+      console.log('Delete mutation successful for course:', courseId);
+      // Force refetch both queries immediately
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
+      
+      // Also force refetch to ensure immediate update
+      queryClient.refetchQueries({ queryKey: ['admin-courses'] });
+      queryClient.refetchQueries({ queryKey: ['trashed-courses'] });
       
       toast({
         title: "Course moved to trash",
@@ -56,7 +63,7 @@ export const useTrashedCourses = () => {
       });
     },
     onError: (error) => {
-      console.error('Error moving course to trash:', error);
+      console.error('Delete mutation failed:', error);
       toast({
         title: "Error",
         description: "Failed to move course to trash. Please try again.",
@@ -83,6 +90,9 @@ export const useTrashedCourses = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
+      queryClient.refetchQueries({ queryKey: ['admin-courses'] });
+      queryClient.refetchQueries({ queryKey: ['trashed-courses'] });
+      
       toast({
         title: "Course restored",
         description: "The course has been restored from trash as a draft.",
@@ -115,6 +125,8 @@ export const useTrashedCourses = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trashed-courses'] });
+      queryClient.refetchQueries({ queryKey: ['trashed-courses'] });
+      
       toast({
         title: "Course permanently deleted",
         description: "The course has been permanently deleted and cannot be recovered.",

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -22,7 +21,6 @@ export default function AdminCourses() {
     queryFn: async () => {
       console.log('Fetching admin courses');
       
-      // First, get the basic course data with related tables that have proper relationships
       const { data: coursesData, error } = await supabase
         .from('courses_enhanced')
         .select(`
@@ -41,7 +39,6 @@ export default function AdminCourses() {
         throw error;
       }
 
-      // Get enrollment counts separately for each course
       if (coursesData && coursesData.length > 0) {
         const coursesWithEnrollments = await Promise.all(
           coursesData.map(async (course) => {
@@ -57,12 +54,12 @@ export default function AdminCourses() {
           })
         );
         
-        console.log('Courses fetched:', coursesWithEnrollments);
+        console.log('Courses fetched with enrollments:', coursesWithEnrollments);
         return coursesWithEnrollments;
       }
       
-      console.log('Courses fetched:', coursesData || []);
-      return coursesData || [];
+      console.log('No courses found');
+      return [];
     },
   });
 
@@ -78,6 +75,7 @@ export default function AdminCourses() {
           table: 'course_enrollments'
         },
         () => {
+          console.log('Enrollment change detected, refetching...');
           refetch();
         }
       )
@@ -93,6 +91,7 @@ export default function AdminCourses() {
           table: 'trashed_courses'
         },
         () => {
+          console.log('Trashed courses change detected, refetching...');
           refetch();
         }
       )
@@ -117,15 +116,18 @@ export default function AdminCourses() {
   };
 
   const handleDeleteCourse = async (courseId: string) => {
-    console.log('Delete button clicked for course:', courseId);
+    console.log('DELETE BUTTON CLICKED for course:', courseId);
     setDeletingCourseId(courseId);
     
     try {
+      console.log('Calling deleteCourse mutation...');
       await deleteCourse.mutateAsync(courseId);
+      console.log('DELETE MUTATION COMPLETED successfully');
     } catch (error) {
-      console.error('Failed to delete course:', error);
+      console.error('DELETE MUTATION FAILED:', error);
     } finally {
       setDeletingCourseId(null);
+      console.log('Delete operation finished, clearing deleting state');
     }
   };
 
@@ -257,10 +259,14 @@ export default function AdminCourses() {
                           variant="outline" 
                           size="sm" 
                           className="text-red-500 hover:text-red-600"
-                          onClick={() => handleDeleteCourse(course.id)}
+                          onClick={() => {
+                            console.log('DELETE BUTTON CLICKED - About to call handleDeleteCourse');
+                            handleDeleteCourse(course.id);
+                          }}
                           disabled={deletingCourseId === course.id || deleteCourse.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
+                          {deletingCourseId === course.id ? 'Deleting...' : ''}
                         </Button>
                       </div>
                     </>
@@ -312,6 +318,13 @@ export default function AdminCourses() {
       </div>
     );
   }
+
+  console.log('CURRENT COUNTS:', {
+    total: allCourses.length,
+    published: publishedCourses.length,
+    drafts: draftCourses.length,
+    trashed: trashedCourses.length
+  });
 
   return (
     <div className="space-y-6">
